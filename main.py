@@ -78,6 +78,7 @@ while v_cap.isOpened():
         ret, image = v_cap.read()
         image = cv2.resize(image, (1920, 1080))
         if int(v_cap.get(1)) % 10 == 0:
+            image=cv2.flip(image,1)
             cv2.imwrite(output_directory+'/capture%d.jpg' % (v_cap.get(1)), image)
             print("Frame Captured: %d" % v_cap.get(1))
             cnt += 1
@@ -171,7 +172,6 @@ for i in range(len(label_list)):
                 keypoint_data_left.append(sample)
             else:
                 keypoint_data_right.append(sample)
-                print(len(sample))
     else:
         sample=['' for i in range(64)]
         keypoint_data_right.append(sample)
@@ -257,7 +257,9 @@ df_left.to_csv(keypoint_file_left,index=None)
 import xgboost as xgb
 from sklearn.preprocessing import LabelEncoder
 
+
 def predict_op(keypoint_file,model,label):
+    
     keypoint=pd.read_csv(keypoint_file)
     x=keypoint.iloc[:,1:]
     clf=xgb.XGBClassifier()
@@ -270,8 +272,10 @@ def predict_op(keypoint_file,model,label):
 pp_label=['l_fg','l_fist','l_tb','r_fg','r_fist','r_tb']
 cnv_label=['l_1','l_2','l_3','l_4','l_5','l_fist',
     'r_1','r_2','r_3','r_4','r_5','r_fist']
+    
 pp_model='./model/xgboost_total_pp-1.model'
 cnv_model='./model/xgboost_total_cnv-2.model'
+
     
 if(op_type=="pp"):
     pred_r=predict_op(keypoint_file,pp_model,pp_label)
@@ -294,13 +298,16 @@ def count_op(right_label,left_label,pred_r,pred_l):
         prev_l=pred_l[i]
         cur_r=pred_r[i+1]
         cur_l=pred_l[i+1]
-        if(left_label.index(prev_l)==left_label.index(cur_l)-1):
-            index=left_label.index(prev_l)
-            if(right_label[index]==prev_r and cur_r==right_label[index+1]):
-                cnt+=1
-        elif(prev_l==left_label[-1] and cur_l==left_label[0]):
-            if(prev_r==right_label[-1] and cur_r==right_label[0]):
-                cnt+=1
+        try:
+            if(left_label.index(prev_l)==left_label.index(cur_l)-1 and left_label.index(prev_l)==right_label.index(prev_r)) :
+                index=left_label.index(prev_l)
+                if(right_label[index]==prev_r and cur_r==right_label[index+1]):
+                    cnt+=1
+            elif(prev_l==left_label[-1] and cur_l==left_label[0] and left_label.index(prev_l)==right_label.index(prev_r)):
+                if(prev_r==right_label[-1] and cur_r==right_label[0]):
+                    cnt+=1
+        except:
+            continue
     return cnt
 
 if(op_type=="pp"):
@@ -308,4 +315,4 @@ if(op_type=="pp"):
 elif(op_type=="cnv"):
     cnt=count_op(cnv_r_label,cnv_l_label,pred_r,pred_l)
 
-print(cnt)
+print("count: "+str(cnt))
